@@ -1,65 +1,106 @@
 import joblib
+import pandas as pd
 import re
 import sys
-import pandas as pd
 from pathlib import Path
+from rapidfuzz import process  # pip install rapidfuzz
 
-# Fix for the Line 3 error: allow Python to see the 'ml' and 'rules' folders
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Fix pathing: Set BASE_DIR to project root
+BASE_DIR = Path(__file__).resolve().parent.parent 
 if str(BASE_DIR) not in sys.path:
     sys.path.append(str(BASE_DIR))
 
+# Import your specific rules and preprocessing logic
 from rules.category_rules import CATEGORY_RULES
+from file_handler.loader import load_file
+from Scripts.preprocess import clean_text  # Using your specific NLTK-based cleaner
 
-# ---------------------------
-# Step 1: Rule-based matching
-# ---------------------------
-def rule_based_category(text):
-    if not isinstance(text, str): return None
-    text = text.lower()
+# 1. LOAD ML ASSETS
+MODEL_PATH = BASE_DIR / "ml" / "model.pkl"
+VECTORIZER_PATH = BASE_DIR / "ml" / "vectorizer.pkl"
 
+try:
+    model = joblib.load(MODEL_PATH)
+    vectorizer = joblib.load(VECTORIZER_PATH)
+    print("🤖 ML Model & Vectorizer loaded successfully.")
+except Exception as e:
+    model, vectorizer = None, None
+    print(f"⚠️ ML Model fallback disabled. Error: {e}")
+
+def predict_single(raw_text):
+    """
+    Classification Waterfall: 
+    Preprocess -> Exact Rules -> Fuzzy Matching -> ML Model
+    """
+    if not isinstance(raw_text, str) or not raw_text.strip():
+        return "Others", "N/A"
+    
+    # --- STEP 0: PREPROCESSING (Using your NLTK logic) ---
+    # This removes 'upi', 'rs', 'txn', and stopwords like 'the', 'is'
+    text_clean = clean_text(raw_text)
+    
+    if not text_clean:
+        return "Others", "No Clean Text"
+
+    # --- STAGE 1: EXACT RULE MATCHING ---
     for category, keywords in CATEGORY_RULES.items():
-        for keyword in keywords:
-            if keyword in text:
-                return category
-    return None
+        # Check if any keyword exists in the cleaned text
+        if any(kw.lower() in text_clean for kw in keywords):
+            return category, "Exact Rules"
 
-# ---------------------------
-# 🚀 BATCH PROCESSING WORKFLOW (Using Pathlib)
-# ---------------------------
+    # --- STAGE 2: FUZZY MATCHING ---
+    # Catches typos like 'zomto' or 'swiggi'
+    flattened_rules = {kw.lower(): cat for cat, kws in CATEGORY_RULES.items() for kw in kws}
+    fuzzy_match = process.extractOne(text_clean, flattened_rules.keys(), score_cutoff=85)
+    
+    if fuzzy_match:
+        matched_keyword = fuzzy_match[0]
+        return flattened_rules[matched_keyword], "Fuzzy Match"
+
+    # --- STAGE 3: MACHINE LEARNING ---
+    if model and vectorizer:
+        try:
+            vec_text = vectorizer.transform([text_clean])
+            prediction = model.predict(vec_text)[0]
+            return prediction, "ML Model"
+        except:
+            pass
+    
+    return "Others", "Default"
+
 def run_batch_test(file_name):
-    # Construct paths using Pathlib '/' operator
+    """Full workflow: Load -> Clean -> Categorize -> Summary"""
     input_path = BASE_DIR / "data" / file_name
-    output_path = BASE_DIR / "data" / "batch_results.csv"
+    output_path = BASE_DIR / "data" / "final_categorized_results.csv"
     
     if not input_path.exists():
-        print(f"❌ Error: {file_name} not found in {input_path.parent}")
+        print(f"❌ Error: {file_name} not found.")
         return
 
-    # 1. Load the CSV
-    df = pd.read_csv(input_path)
+    # Use your smart loader (pdfplumber + OCR)
+    df = load_file(str(input_path))
     
-    # 2. Identify the column
-    possible_cols = ['Transaction Description', 'description', 'Details', 'Narration']
-    col_name = next((c for c in possible_cols if c in df.columns), df.columns[0])
+    if df.empty:
+        print("❌ No data found.")
+        return
     
-    print(f"⚙️  Starting Batch Processing: {file_name}")
+    print(f"⚙️ Processing {len(df)} transactions...")
 
-    # 3. Apply rules to the WHOLE file at once (Pandas Batching)
-    df['Predicted_Category'] = df[col_name].apply(rule_based_category)
+    # Apply categorization
+    results = df['Description'].apply(lambda x: predict_single(x))
+    df[['Predicted_Category', 'Method']] = pd.DataFrame(results.tolist(), index=df.index)
 
-    # 4. Save results
+    # Save
     df.to_csv(output_path, index=False)
     
-    # 5. Show Batch Summary
-    total = len(df)
-    matched = df['Predicted_Category'].notna().sum()
-    print("-" * 30)
-    print(f"✅ Success: Processed {total} rows.")
-    print(f"📊 Rules Matched: {matched} | Coverage: {(matched/total)*100:.1f}%")
-    print(f"💾 Results saved to: {output_path.name}")
-    print("-" * 30)
+    print("\n" + "="*40)
+    print(f"📊 SUMMARY FOR: {file_name}")
+    print("-" * 40)
+    print(f"✅ Rules/Fuzzy/ML Coverage: {((df['Method'] != 'Default').mean()*100):.1f}%")
+    print(f"\n📂 Top Categories:\n{df['Predicted_Category'].value_counts().head()}")
+    print(f"\n🛠️ Logic Breakdown:\n{df['Method'].value_counts()}")
+    print("="*40)
 
 if __name__ == "__main__":
-    # Ensure this name matches your file in the /data/ folder
-    run_batch_test("bank_statement.csv")
+    # Ensure this file exists in your /data/ folder
+    run_batch_test("batch_results.csv")
