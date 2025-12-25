@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OCR binaries
+Tesser-OCR/
+
+# Ignore real PDFs (keep folder)
+data/*.pdf
+
+# Ignore generated outputs
+output_*.csv
+batch_results.csv
+
+# OS
+.DS_Store
+Thumbs.db
