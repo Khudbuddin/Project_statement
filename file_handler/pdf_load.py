@@ -1,147 +1,86 @@
-import pdfplumber
-import pandas as pd
-import re
-import pytesseract
-from PIL import Image
-import io
+import pdfplumber, pandas as pd, re, pytesseract
 
-# Set Tesseract path (update this to your exact path, e.g., D:\smart-expense-categorizer\tesseract.exe)
 pytesseract.pytesseract.tesseract_cmd = r'D:\smart-expense-categorizer\tesseract.exe'
 
-def load_pdf(file_path):
-    print(f"Loading {file_path}...")
-    all_rows = []
-    all_text = []
-    
+def load_pdf(file_path, password=None):
+    all_rows, all_text = [], []
     try:
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_path, password=password) as pdf:
             print(f"PDF has {len(pdf.pages)} pages.")
             for page in pdf.pages:
                 table = page.extract_table()
-                if table:
-                    print(f"Table found on page {page.page_number} with {len(table)} rows.")
+                if table: 
                     all_rows.extend(table)
+                    print(f"Table found on page {page.page_number} with {len(table)} rows.")
+                
                 text = page.extract_text()
                 if text:
                     all_text.append(text)
-                    print(f"Text extracted from page {page.page_number}.")
+                    print(f"Text extracted from page {page.page_number}: {text[:100]}...")
                 else:
-                    # OCR fallback for image-based pages
-                    print(f"No text on page {page.page_number}. Attempting OCR...")
-                    image = page.to_image(resolution=300).original  # High res for better OCR
+                    print(f"No text on page {page.page_number}, attempting OCR...")
+                    image = page.to_image(resolution=300).original
                     ocr_text = pytesseract.image_to_string(image)
                     if ocr_text.strip():
                         all_text.append(ocr_text)
-                        print("OCR extracted text.")
+                        print(f"OCR extracted: {ocr_text[:100]}...")
                     else:
                         print("OCR failed to extract text.")
     except Exception as e:
         print(f"Error opening PDF: {e}")
         return pd.DataFrame(columns=["Description"])
-    
-    if not all_rows and not all_text:
-        print("No tables or text extracted.")
-        return pd.DataFrame(columns=["Description"])
-    
-    # Process tables if available
+
+    print(f"Total all_rows: {len(all_rows)}, Total all_text: {len(all_text)}")
+
     if all_rows:
-        raw_df = pd.DataFrame(all_rows).replace(r'\n', ' ', regex=True)
-        if len(raw_df) <= 1:
-            print("Table has no data rows. Falling back to text/OCR parsing.")
-            return parse_text_for_descriptions(all_text)
+        df = pd.DataFrame(all_rows).replace(r'\n', ' ', regex=True)
+        print(f"Raw table DF shape: {df.shape}")
         
-        # Column detection
-        target_idx = None
-        known_headers = ['remarks', 'particulars', 'description', 'narration', 'details', 'transaction details']
-        banking_patterns = ['upi/', 'cash', 'chq', 'transfer', 'neft', 'rtgs', 'atm', 'debit', 'credit', 'payment', 'withdrawal', 'deposit']
+        # Find column using keywords or content signatures
+        headers = ['remarks', 'particulars', 'description', 'narration', 'details']
+        patterns = ['upi/', 'cash', 'chq', 'transfer', 'neft', 'rtgs']
         
-        for i, col_val in enumerate(raw_df.iloc[0]):
-            if any(key in str(col_val).lower() for key in known_headers):
-                target_idx = i
-                print(f"Header match: Column {i} ({col_val})")
-                break
-        
+        target_idx = next((i for i, c in enumerate(df.iloc[0]) if any(k in str(c).lower() for k in headers)), None)
         if target_idx is None:
-            for col_idx in range(len(raw_df.columns)):
-                sample_text = " ".join(raw_df.iloc[:min(10, len(raw_df)), col_idx].astype(str)).lower()
-                if any(p in sample_text for p in banking_patterns):
-                    target_idx = col_idx
-                    print(f"Content match: Column {col_idx}")
-                    break
-        
-        if target_idx is None:
-            print("No description column. Falling back to text/OCR parsing.")
-            return parse_text_for_descriptions(all_text)
-        
-        # Extraction & merging
-        date_pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b|\b\d{1,2} \w{3} \d{4}\b'
-        final_data = []
-        current_desc = ""
-        
-        for _, row in raw_df.iterrows():
-            row_content = " ".join(row.astype(str))
-            is_new_txn = re.search(date_pattern, row_content)
-            val_desc = str(row[target_idx]).strip()
+            target_idx = next((i for i in range(len(df.columns)) if any(p in " ".join(df.iloc[:5, i].astype(str)).lower() for p in patterns)), None)
+
+        print(f"Target column index: {target_idx}")
+
+        if target_idx is not None:
+            date_regex = r'\d{1,2}[/-]\d{1,2}[/-]\d{4}'
+            final, current = [], ""
+            for _, row in df.iterrows():
+                val = str(row[target_idx]).strip()
+                if val.lower() in headers: continue
+                if re.search(date_regex, " ".join(row.astype(str))):
+                    if current: final.append(current)
+                    current = val
+                else: current += " " + val
+            if current: final.append(current)
+            result_df = pd.DataFrame(final, columns=["Description"]).query("Description.str.len() > 5")
+            print(f"Extracted {len(result_df)} descriptions from tables.")
             
-            if val_desc.lower() in known_headers:
-                continue
+            # NEW: If no descriptions extracted, fall back to text parsing
+            if len(result_df) == 0:
+                print("No descriptions from tables. Falling back to text parsing...")
+                return parse_text_for_descriptions(all_text)
             
-            if is_new_txn:
-                if current_desc:
-                    final_data.append(current_desc)
-                current_desc = val_desc
-            else:
-                if val_desc and val_desc.lower() != 'none' and val_desc != "":
-                    current_desc += " " + val_desc
-        
-        if current_desc:
-            final_data.append(current_desc)
-        
-        df = pd.DataFrame(final_data, columns=["Description"])
-        df = df[df['Description'].str.len() > 5]
-        print(f"Extracted {len(df)} descriptions from tables.")
-        
-        # If no descriptions extracted, fall back to text/OCR
-        if len(df) == 0:
-            print("No descriptions from tables. Falling back to text/OCR parsing.")
-            return parse_text_for_descriptions(all_text)
-        
-        return df.reset_index(drop=True)
-    
-    # Fallback to text/OCR parsing
-    print("Parsing text/OCR for descriptions...")
+            return result_df
+
+    print("No tables found. Parsing text...")
     return parse_text_for_descriptions(all_text)
 
 def parse_text_for_descriptions(all_text):
-    final_data = []
-    date_pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b|\b\d{1,2} \w{3} \d{4}\b'
-    current_desc = ""
-    
-    for page_text in all_text:
-        lines = page_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if not line or len(line) < 10:
-                continue
-            is_new_txn = re.search(date_pattern, line)
-            if is_new_txn:
-                if current_desc:
-                    final_data.append(current_desc)
-                current_desc = re.sub(date_pattern, '', line).strip()
-            else:
-                if any(keyword in line.lower() for keyword in ['upi', 'cash', 'chq', 'transfer', 'neft', 'rtgs', 'atm', 'debit', 'credit', 'payment']):
-                    if current_desc:
-                        final_data.append(current_desc)
-                    current_desc = line
-                else:
-                    current_desc += " " + line
-    
-    if current_desc:
-        final_data.append(current_desc)
-    
-    df = pd.DataFrame(final_data, columns=["Description"])
-    df = df[df['Description'].str.len() > 5]
-    print(f"Extracted {len(df)} descriptions from text/OCR.")
-    if len(df) == 0:
-        print("No transaction descriptions found. The PDF may be empty or OCR failed.")
-    return df.reset_index(drop=True)
+    print(f"Parsing all_text with {len(all_text)} items.")
+    pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b'
+    data, current = [], ""
+    for line in "\n".join(all_text).split('\n'):
+        if len(line) < 10: continue
+        if re.search(pattern, line):
+            if current: data.append(current)
+            current = re.sub(pattern, '', line).strip()
+        else: current += " " + line
+    if current: data.append(current)
+    result_df = pd.DataFrame(data, columns=["Description"]).reset_index(drop=True)
+    print(f"Extracted {len(result_df)} descriptions from text/OCR.")
+    return result_df

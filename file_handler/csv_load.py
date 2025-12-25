@@ -1,35 +1,28 @@
 import pandas as pd
-import re
-
+import regex as re
 def load_csv(file_path):
     df = pd.read_csv(file_path)
     df.columns = [str(c).lower().strip() for c in df.columns]
-
-    target_col = None
-    # 1. Header Keyword Check
-    known_headers = ['description', 'particulars', 'remarks', 'narration', 'details',]
-    for col in df.columns:
-        if any(key in col for key in known_headers):
-            target_col = col
-            break
-
-    # 2. Content Fingerprinting (Fallback)
-    if target_col is None:
-        banking_patterns = ['upi/', '/inf/', 'transfer', 'chq', 'cash', 'neft', 'rtgs']
-        for col in df.columns:
-            sample_data = " ".join(df[col].head(5).astype(str)).lower()
-            if any(pattern in sample_data for pattern in banking_patterns):
-                target_col = col
-                break
-
-    if target_col:
-        df = df.rename(columns={target_col: "Description"})
-        date_pattern = r'\d{2}[/-]\d{2}[/-]\d{4}'
-        # Clean rows that don't look like transactions
-        for col in df.columns:
-            if df[col].astype(str).str.contains(date_pattern).any():
-                df = df[df[col].astype(str).str.contains(date_pattern, na=False)]
-                break
-        return df[["Description"]].reset_index(drop=True)
+    print(f"CSV loaded with {len(df)} rows. Columns: {list(df.columns)}")
     
+    headers = ['description', 'particulars', 'remarks', 'narration', 'details', 'transaction description']  # Added your column
+    patterns = ['upi/', '/inf/', 'transfer', 'chq', 'cash', 'neft']
+    
+    # Identify column
+    target = next((c for c in df.columns if any(k in c for k in headers)), None)
+    if not target:
+        target = next((c for c in df.columns if any(p in " ".join(df[c].head(5).astype(str)).lower() for p in patterns)), None)
+    
+    print(f"Target column: {target}")
+    
+    if target:
+        df = df.rename(columns={target: "Description"})
+        # Flexible date filtering: Try multiple patterns, and if none match, skip filtering
+        date_patterns = [r'\d{2}[/-]\d{2}[/-]\d{4}', r'\d{4}[/-]\d{2}[/-]\d{2}', r'\d{1,2} \w{3} \d{4}']  # DD/MM/YYYY, YYYY-MM-DD, DD Mon YYYY
+        mask = df.apply(lambda r: any(re.search(p, str(r)) for p in date_patterns), axis=1)
+        filtered_df = df[mask] if mask.any() else df  # If no dates found, use all rows
+        print(f"Rows after date filtering: {len(filtered_df)}")
+        return filtered_df[["Description"]].reset_index(drop=True)
+    
+    print("No suitable column found.")
     return pd.DataFrame(columns=["Description"])
