@@ -16,8 +16,8 @@ from file_handler.loader import load_file
 from Scripts.preprocess import clean_text  # Using your specific NLTK-based cleaner
 
 # 1. LOAD ML ASSETS
-MODEL_PATH = BASE_DIR / "ml" / "model.pkl"
-VECTORIZER_PATH = BASE_DIR / "ml" / "vectorizer.pkl"
+MODEL_PATH = BASE_DIR / "Scripts" / "model.pkl"
+VECTORIZER_PATH = BASE_DIR / "Scripts" / "vectorizer.pkl"
 
 try:
     model = joblib.load(MODEL_PATH)
@@ -103,4 +103,4 @@ def run_batch_test(file_name):
 
 if __name__ == "__main__":
     # Ensure this file exists in your /data/ folder
-    run_batch_test("batch_results.csv")
+    run_batch_test("canara_epassbook.pdf")

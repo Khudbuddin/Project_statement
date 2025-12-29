@@ -1,18 +1,13 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-
-# OCR binaries
+# OCR Binaries
 Tesser-OCR/
 
-# Ignore real PDFs (keep folder)
-data/*.pdf
+# Virtual Environment
+.sayyad/
 
-# Ignore generated outputs
-output_*.csv
-batch_results.csv
+# ML Models
+backend/Scripts/*.pkl
 
-# OS
-.DS_Store
-Thumbs.db
+# Python Cache
+**/__pycache__/
+
+backend/data/*.pdf

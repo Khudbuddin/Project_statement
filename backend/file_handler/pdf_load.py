@@ -1,7 +1,6 @@
 import pdfplumber, pandas as pd, re, pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = r'D:\smart-expense-categorizer\tesseract.exe'
-
+pytesseract.pytesseract.tesseract_cmd = r'D:\smart-expense-categorizer\Tesser-OCR\tesseract.exe'
 def load_pdf(file_path, password=None):
     all_rows, all_text = [], []
     try:
