@@ -1,11 +1,3 @@
-# Ignore temporary Python files
 __pycache__/
 *.pyc
-
-# Ignore environment files
 .env
-venv/
-.vscode/
-
-# DO NOT ignore .db files so your team can see them
-# (Usually we ignore these, but for your project, leave them out of this file)
