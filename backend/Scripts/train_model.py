@@ -9,7 +9,7 @@ from sklearn.metrics import accuracy_score, classification_report
 
 # 1. SETUP PATHS
 BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_PATH = BASE_DIR / "data" / "Raw.csv"
+DATA_PATH = BASE_DIR / "data" / "training_data.csv"
 MODEL_OUTPUT = BASE_DIR / "Scripts" / "model.pkl"
 VECTORIZER_OUTPUT = BASE_DIR / "Scripts" / "vectorizer.pkl"
 
