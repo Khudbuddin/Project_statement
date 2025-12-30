@@ -1,0 +1,86 @@
+import pdfplumber, pandas as pd, re, pytesseract
+
+pytesseract.pytesseract.tesseract_cmd = r'D:\smart-expense-categorizer\tesseract.exe'
+
+def load_pdf(file_path, password=None):
+    all_rows, all_text = [], []
+    try:
+        with pdfplumber.open(file_path, password=password) as pdf:
+            print(f"PDF has {len(pdf.pages)} pages.")
+            for page in pdf.pages:
+                table = page.extract_table()
+                if table: 
+                    all_rows.extend(table)
+                    print(f"Table found on page {page.page_number} with {len(table)} rows.")
+                
+                text = page.extract_text()
+                if text:
+                    all_text.append(text)
+                    print(f"Text extracted from page {page.page_number}: {text[:100]}...")
+                else:
+                    print(f"No text on page {page.page_number}, attempting OCR...")
+                    image = page.to_image(resolution=300).original
+                    ocr_text = pytesseract.image_to_string(image)
+                    if ocr_text.strip():
+                        all_text.append(ocr_text)
+                        print(f"OCR extracted: {ocr_text[:100]}...")
+                    else:
+                        print("OCR failed to extract text.")
+    except Exception as e:
+        print(f"Error opening PDF: {e}")
+        return pd.DataFrame(columns=["Description"])
+
+    print(f"Total all_rows: {len(all_rows)}, Total all_text: {len(all_text)}")
+
+    if all_rows:
+        df = pd.DataFrame(all_rows).replace(r'\n', ' ', regex=True)
+        print(f"Raw table DF shape: {df.shape}")
+        
+        # Find column using keywords or content signatures
+        headers = ['remarks', 'particulars', 'description', 'narration', 'details']
+        patterns = ['upi/', 'cash', 'chq', 'transfer', 'neft', 'rtgs']
+        
+        target_idx = next((i for i, c in enumerate(df.iloc[0]) if any(k in str(c).lower() for k in headers)), None)
+        if target_idx is None:
+            target_idx = next((i for i in range(len(df.columns)) if any(p in " ".join(df.iloc[:5, i].astype(str)).lower() for p in patterns)), None)
+
+        print(f"Target column index: {target_idx}")
+
+        if target_idx is not None:
+            date_regex = r'\d{1,2}[/-]\d{1,2}[/-]\d{4}'
+            final, current = [], ""
+            for _, row in df.iterrows():
+                val = str(row[target_idx]).strip()
+                if val.lower() in headers: continue
+                if re.search(date_regex, " ".join(row.astype(str))):
+                    if current: final.append(current)
+                    current = val
+                else: current += " " + val
+            if current: final.append(current)
+            result_df = pd.DataFrame(final, columns=["Description"]).query("Description.str.len() > 5")
+            print(f"Extracted {len(result_df)} descriptions from tables.")
+            
+            # NEW: If no descriptions extracted, fall back to text parsing
+            if len(result_df) == 0:
+                print("No descriptions from tables. Falling back to text parsing...")
+                return parse_text_for_descriptions(all_text)
+            
+            return result_df
+
+    print("No tables found. Parsing text...")
+    return parse_text_for_descriptions(all_text)
+
+def parse_text_for_descriptions(all_text):
+    print(f"Parsing all_text with {len(all_text)} items.")
+    pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b'
+    data, current = [], ""
+    for line in "\n".join(all_text).split('\n'):
+        if len(line) < 10: continue
+        if re.search(pattern, line):
+            if current: data.append(current)
+            current = re.sub(pattern, '', line).strip()
+        else: current += " " + line
+    if current: data.append(current)
+    result_df = pd.DataFrame(data, columns=["Description"]).reset_index(drop=True)
+    print(f"Extracted {len(result_df)} descriptions from text/OCR.")
+    return result_df
