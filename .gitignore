@@ -1,13 +1,11 @@
-# OCR Binaries
-Tesser-OCR/
+# Ignore temporary Python files
+__pycache__/
+*.pyc
 
-# Virtual Environment
-.sayyad/
+# Ignore environment files
+.env
+venv/
+.vscode/
 
-# ML Models
-backend/Scripts/*.pkl
-
-# Python Cache
-**/__pycache__/
-
-backend/data/*.pdf
+# DO NOT ignore .db files so your team can see them
+# (Usually we ignore these, but for your project, leave them out of this file)
