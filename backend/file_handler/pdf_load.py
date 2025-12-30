@@ -46,7 +46,7 @@ def load_pdf(file_path, password=None):
         print(f"Target column index: {target_idx}")
 
         if target_idx is not None:
-            date_regex = r'\d{1,2}[/-]\d{1,2}[/-]\d{4}'
+            date_regex = r'\b(?:\d{1,2} \w{3}|\w{3} \d{1,2}), \d{4}\b'
             final, current = [], ""
             for _, row in df.iterrows():
                 val = str(row[target_idx]).strip()
@@ -58,12 +58,12 @@ def load_pdf(file_path, password=None):
             if current: final.append(current)
             result_df = pd.DataFrame(final, columns=["Description"]).query("Description.str.len() > 5")
             print(f"Extracted {len(result_df)} descriptions from tables.")
-            
+
             # NEW: If no descriptions extracted, fall back to text parsing
             if len(result_df) == 0:
                 print("No descriptions from tables. Falling back to text parsing...")
                 return parse_text_for_descriptions(all_text)
-            
+
             return result_df
 
     print("No tables found. Parsing text...")
@@ -71,15 +71,35 @@ def load_pdf(file_path, password=None):
 
 def parse_text_for_descriptions(all_text):
     print(f"Parsing all_text with {len(all_text)} items.")
-    pattern = r'\b\d{1,2}[/-]\d{1,2}[/-]\d{4}\b'
+    pattern = r'\b(?:\d{1,2} \w{3}|\w{3} \d{1,2}), \d{4}\b'
     data, current = [], ""
     for line in "\n".join(all_text).split('\n'):
         if len(line) < 10: continue
         if re.search(pattern, line):
-            if current: data.append(current)
+            if current:
+                # Extract Type and Amount for the current description
+                transaction_type, amount = extract_type_and_amount(current)
+                data.append({'Description': current, 'Type': transaction_type, 'Amount': amount})
             current = re.sub(pattern, '', line).strip()
         else: current += " " + line
-    if current: data.append(current)
-    result_df = pd.DataFrame(data, columns=["Description"]).reset_index(drop=True)
+    if current:
+        transaction_type, amount = extract_type_and_amount(current)
+        data.append({'Description': current, 'Type': transaction_type, 'Amount': amount})
+    result_df = pd.DataFrame(data).reset_index(drop=True)
     print(f"Extracted {len(result_df)} descriptions from text/OCR.")
     return result_df
+
+def extract_type_and_amount(description):
+    # Extract Type: CREDIT or DEBIT from text
+    if 'CREDIT' in description.upper():
+        transaction_type = 'CREDIT'
+    elif 'DEBIT' in description.upper():
+        transaction_type = 'DEBIT'
+    else:
+        transaction_type = 'UNKNOWN'
+
+    # Extract Amount: Look for ₹ followed by number
+    amount_match = re.search(r'₹([\d,]+(?:\.\d{2})?)', description)
+    amount = amount_match.group(1) if amount_match else '0'
+
+    return transaction_type, amount
