@@ -1,7 +1,5 @@
-# Ignore database files
-databases/
-*.db
-
-# Ignore Python cache
 __pycache__/
+*.pyc
 .env
+.streamlit/
+.DS_Store
