@@ -1,7 +1,0 @@
-# Ignore database files
-databases/
-*.db
-
-# Ignore Python cache
-__pycache__/
-.env
