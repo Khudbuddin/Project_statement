@@ -1,0 +1,13 @@
+# OCR Binaries
+Tesser-OCR/
+
+# Virtual Environment
+.sayyad/
+
+# ML Models
+backend/Scripts/*.pkl
+
+# Python Cache
+**/__pycache__/
+
+backend/data/*.pdf

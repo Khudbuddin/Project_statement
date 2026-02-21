@@ -1,0 +1,11 @@
+Category,Transaction Description,Predicted_Category
+Income,Salary credited from ABC Pvt Ltd,Salary
+Food,Swiggy order – dinner,Food
+Transport,Uber ride from office to home,Travel
+Utilities,Electricity bill payment – Tata Power,Utilities
+Shopping,Amazon purchase – headphones,Shopping
+Entertainment,Netflix monthly subscription,Entertainment
+Healthcare,Medical store purchase – medicines,Shopping
+Rent,Monthly house rent paid via UPI,Utilities
+Savings,Transfer to savings account,Utilities
+Fees,Bank service charge for ATM usage,Utilities
