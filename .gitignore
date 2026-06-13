@@ -11,3 +11,6 @@ backend/Scripts/*.pkl
 **/__pycache__/
 
 backend/data/*.pdf
+
+# Environment Variables
+.env

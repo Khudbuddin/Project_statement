@@ -5,7 +5,7 @@ CATEGORY_RULES = {
         "dining", "meal", "snack", "beverage", "swiggy", "zomato", 
         "starbucks", "dominos", "kfc", "pizza hut", "eatfit", "mcdonalds", 
         "burger", "chaat", "eats", "dhaba", "sweet", "bake", "good luck", 
-        "mahalaxmi", "janta oil", "sagar bake",
+        "mahalaxmi", "sagar bake",
         # Indian Additions
         "biryani", "tiffin", "thali", "paratha", "juice", "milkshake", 
         "bhel", "pani puri", "kulfi", "laddoo", "halwa"
@@ -18,14 +18,14 @@ CATEGORY_RULES = {
         "shell", "makemytrip", "mmt", "ixigo", "fastag", "toll", "parking",
         # Indian Additions
         "auto", "rickshaw", "cycle", "scooter", "bike", "car rental", 
-        "zoomcar", "drivezy", "ola electric", "yulu", "rapido bike"
+        "zoomcar", "drivezy", "ola electric", "yulu", "rapido bike","janto oil"
     ],
     "Utilities & Bills": [
         # Core Keywords
         "electricity", "water", "gas", "bill", "recharge", "mobile", 
-        "broadband", "internet", "utility", "jio", "airtel", "vi", 
+        "broadband", "internet", "utility", "jio", "airtel", "Vi","tata power","reliance" 
         "bbps", "tata play", "bil/", "inft/", "bpay", "bsnl", "dth", 
-        "msecl", "actfibernet", "google ind", "vikhroli m",
+        "msecl", "actfibernet", "google ind", "vikhroli m","Cardfee","Cardfee",
         # Indian Additions
         "landline", "dish tv", "zee5", "altbalaji", "jiotv", "vodafone", 
         "idea", "reliance jio", "exide", "amaron", "bajaj electricals"
@@ -35,7 +35,7 @@ CATEGORY_RULES = {
         "amazon", "flipkart", "mall", "store", "shop", "purchase", 
         "retail", "myntra", "ajio", "blinkit", "zepto", "bigbasket", 
         "dmart", "nykaa", "jiomart", "meesho", "reliance", "fashion", 
-        "grocery", "bbnow", "shree mehul jewellers", "shoes com", "yb sales",
+        "grocery", "bbnow", "shree mehul jewellers", "shoes com", "yb sales","brillare"
         # Indian Additions
         "local store", "kirana", "bazaar", "market", "hypercity", "spencers", 
         "more", "big bazaar", "croma", "vijay sales", "lifestyle", "pantaloons"
@@ -108,10 +108,10 @@ CATEGORY_RULES = {
     ],
     "Transfers (Personal/UPI)": [
         # Core Keywords
-        "upi-id", "paytmqr", "payment to", "sent to", "receiving", 
-        "p2p", "wallet", "add money", "transfer to", "paid to", "received from",
+        "paytmqr", "receiving", 
+        "p2p", "wallet", "add money", "transfer to", "received from"
         # Indian Additions
-        "bharatpe", "phonepe", "gpay", "paytm", "amazon pay", "mobikwik", 
+        "amazon pay", "mobikwik", 
         "freecharge", "ola money", "jio money", "airtel money", "qr", "scanner"
     ]
 }

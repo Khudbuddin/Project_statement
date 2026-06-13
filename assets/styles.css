@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+/* GLOBAL THEME */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
+
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(circle at top, #0f172a 0%, #020617 100%) !important;
+    color: #e5e7eb;
+}
+
+/* HIDE HEADER/FOOTER */
+header, footer {visibility: hidden;}
+
+/* DASHBOARD LAYOUT */
+.block-container {
+    max-width: 1100px !important;
+    padding-top: 2rem !important;
+}
+
+/* CENTERED NAVIGATION PILL */
+div[data-testid="stSegmentedControl"] {
+    justify-content: center !important;
+    background: rgba(30, 41, 59, 0.5) !important;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    border: 1px solid #334155 !important;
+    margin-bottom: 2rem !important;
+}
+
+div[data-testid="stSegmentedControl"] button {
+    border: none !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+    padding: 8px 25px !important;
+    font-weight: 600 !important;
+}
+
+div[data-testid="stSegmentedControl"] button[aria-checked="true"] {
+    background: #0ea5e9 !important;
+    color: white !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3) !important;
+}
+
+/* METRIC CARDS */
+[data-testid="stMetric"] {
+    background: rgba(17, 24, 39, 0.7) !important;
+    border: 1px solid #1f2937 !important;
+    padding: 20px !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* UNIVERSAL DATA TABLE */
+[data-testid="stTable"] {
+    background: #111827 !important;
+    border: 1px solid #1f2937 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+}
+
+/* UPLOADER AREA */
+[data-testid="stFileUploader"] {
+    background: rgba(30, 41, 59, 0.3) !important;
+    border: 2px dashed #334155 !important;
+    border-radius: 16px !important;
+    padding: 20px !important;
+}
+
+/* PRIMARY BUTTONS */
+button[kind="primary"] {
+    background: #0ea5e9 !important;
+    color: white !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    font-weight: 700 !important;
+    border: none !important;
+}
+
+/* Gmail Style Profile Circle for Top Nav */
+.profile-circle {
+    width: 45px;
+    height: 45px;
+    background-color: #0ea5e9;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 20px;
+    text-transform: uppercase;
+    box-shadow: 0 4px 10px rgba(14, 165, 233, 0.2);
+    cursor: pointer;
+    border: 2px solid #1e293b;
+    margin-left: 10px;
+}
+
+/* Ensure the horizontal menu spans correctly */
+div[data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+}
+
+/* Remove extra padding from the main container for the dashboard */
+.block-container {
+    padding-top: 1rem !important;
+} 

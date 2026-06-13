@@ -3,15 +3,18 @@ import joblib
 import sys
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 # 1. SETUP PATHS
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "training_data.csv"
 MODEL_OUTPUT = BASE_DIR / "Scripts" / "model.pkl"
-VECTORIZER_OUTPUT = BASE_DIR / "Scripts" / "vectorizer.pkl"
 
 # Add parent to sys.path so we can import preprocess
 if str(BASE_DIR) not in sys.path:
@@ -28,42 +31,53 @@ def train():
     print(f"📊 Loaded {len(df)} transactions for training.")
     
     # Handle NaN in Category
-    df = df.dropna(subset=['Category'])  # Drop rows with NaN in Category
+    df = df.dropna(subset=['Category'])
     print(f"📊 After dropping NaN: {len(df)} transactions.")
     
     df['Description'] = df['Description'].fillna('').astype(str).apply(clean_text)
-    
-    # Remove empty descriptions after cleaning
     df = df[df['Description'] != ""]
 
-    # 3. VECTORIZE
-    vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1,2))
-    X = vectorizer.fit_transform(df['Description'])
+    # 3. FEATURE ENGINEERING (Text + Numeric Amount)
+    X = df[['Description', 'Amount']]  # DataFrame with both columns
     y = df['Category']
+
+    # ColumnTransformer for combined features
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('text', TfidfVectorizer(ngram_range=(1,3), max_features=4000), 'Description'),  # Updated to (1,3) for better context
+            ('num', StandardScaler(), ['Amount'])
+        ]
+    )
 
     # 4. TRAIN/TEST SPLIT
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-    # 5. TRAIN MODEL
-    model = LogisticRegression(max_iter=1000, class_weight='balanced')
-    
-    # Cross-validation check
-    cv_scores = cross_val_score(model, X, y, cv=5)
-    print(f"📈 Cross-Validation Accuracy: {cv_scores.mean():.2f} (+/- {cv_scores.std() * 2:.2f})")
-    
-    model.fit(X_train, y_train)
+    # 5. OPTIMIZED MODEL (Faster & Better)
+    base_rf = RandomForestClassifier(
+        n_estimators=50,      # Faster than 100
+        max_depth=20,         # Prevents overfitting
+        class_weight='balanced',
+        n_jobs=-1             # Parallel processing
+    )
+    model = CalibratedClassifierCV(base_rf, method='sigmoid', cv=3)  # Faster calibration
 
-    # 6. EVALUATE
-    y_pred = model.predict(X_test)
+    # Pipeline
+    pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('classifier', model)])
+    pipeline.fit(X_train, y_train)
+
+    # Cross-validation
+    cv_scores = cross_val_score(pipeline, X, y, cv=3)
+    print(f"📈 Cross-Validation Accuracy: {cv_scores.mean():.2f} (+/- {cv_scores.std() * 2:.2f})")
+
+    # Evaluate
+    y_pred = pipeline.predict(X_test)
     print(f"✅ Hold-out Accuracy: {accuracy_score(y_test, y_pred):.2f}")
     print("\n📝 Classification Report:")
     print(classification_report(y_test, y_pred))
 
-    # 7. SAVE TO 'ml/' FOLDER
-    joblib.dump(model, MODEL_OUTPUT)
-    joblib.dump(vectorizer, VECTORIZER_OUTPUT)
+    # Save Pipeline (includes preprocessor)
+    joblib.dump(pipeline, MODEL_OUTPUT)
     print(f"💾 Model saved to: {MODEL_OUTPUT}")
-    print(f"💾 Vectorizer saved to: {VECTORIZER_OUTPUT}")
 
 if __name__ == "__main__":
     train()
